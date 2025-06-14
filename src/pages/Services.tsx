@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -7,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Clock, MapPin, DollarSign } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import BookingDialog from '@/components/BookingDialog';
 
 interface Service {
   id: string;
@@ -23,6 +23,8 @@ interface Service {
 const Services = () => {
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedService, setSelectedService] = useState<Service | null>(null);
+  const [bookingDialogOpen, setBookingDialogOpen] = useState(false);
   const { user } = useAuth();
 
   useEffect(() => {
@@ -49,6 +51,11 @@ const Services = () => {
       setServices(data || []);
     }
     setLoading(false);
+  };
+
+  const handleBookNow = (service: Service) => {
+    setSelectedService(service);
+    setBookingDialogOpen(true);
   };
 
   if (loading) {
@@ -96,7 +103,9 @@ const Services = () => {
                   </div>
                 </div>
                 {user ? (
-                  <Button className="w-full">Book Now</Button>
+                  <Button className="w-full" onClick={() => handleBookNow(service)}>
+                    Book Now
+                  </Button>
                 ) : (
                   <Button className="w-full" variant="outline" disabled>
                     Sign in to book
@@ -107,6 +116,14 @@ const Services = () => {
           ))}
         </div>
       </div>
+
+      {selectedService && (
+        <BookingDialog
+          open={bookingDialogOpen}
+          onOpenChange={setBookingDialogOpen}
+          service={selectedService}
+        />
+      )}
     </div>
   );
 };
