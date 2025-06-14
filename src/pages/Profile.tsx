@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -29,6 +28,7 @@ const Profile = () => {
 
   useEffect(() => {
     if (user) {
+      console.log('User found, fetching profile for:', user.id);
       fetchProfile();
     }
   }, [user]);
@@ -36,6 +36,7 @@ const Profile = () => {
   const fetchProfile = async () => {
     if (!user) return;
 
+    console.log('Fetching profile for user:', user.id);
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
@@ -44,12 +45,16 @@ const Profile = () => {
 
     if (error) {
       console.error('Error fetching profile:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load profile information",
-        variant: "destructive"
-      });
+      // If profile doesn't exist, that's okay - we'll create it on save
+      if (error.code !== 'PGRST116') {
+        toast({
+          title: "Error",
+          description: "Failed to load profile information",
+          variant: "destructive"
+        });
+      }
     } else {
+      console.log('Profile fetched successfully:', data);
       setProfile(data);
       setFirstName(data.first_name || '');
       setLastName(data.last_name || '');
@@ -62,26 +67,43 @@ const Profile = () => {
     e.preventDefault();
     if (!user) return;
 
+    console.log('Saving profile for user:', user.id);
+    console.log('Profile data:', { firstName, lastName, phone });
+
     setSaving(true);
 
-    const { error } = await supabase
+    const profileData = {
+      id: user.id,
+      first_name: firstName || null,
+      last_name: lastName || null,
+      phone: phone || null,
+      updated_at: new Date().toISOString()
+    };
+
+    console.log('Upserting profile data:', profileData);
+
+    const { data, error } = await supabase
       .from('profiles')
-      .upsert({
-        id: user.id,
-        first_name: firstName,
-        last_name: lastName,
-        phone: phone,
-        updated_at: new Date().toISOString()
-      });
+      .upsert(profileData, {
+        onConflict: 'id'
+      })
+      .select();
 
     if (error) {
       console.error('Error updating profile:', error);
+      console.error('Error details:', {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint
+      });
       toast({
         title: "Error",
-        description: "Failed to update profile",
+        description: `Failed to update profile: ${error.message}`,
         variant: "destructive"
       });
     } else {
+      console.log('Profile updated successfully:', data);
       toast({
         title: "Success",
         description: "Profile updated successfully"
